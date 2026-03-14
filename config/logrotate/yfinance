@@ -1,4 +1,4 @@
-/var/log/uvicorn/*.log {
+/home/azureuser/app/logs/*.log {
     daily
     missingok
     rotate 7

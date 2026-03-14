@@ -3,7 +3,7 @@ enabled  = true
 port     = 8000,http,https
 filter   = fastapi-filter
 # Path to the custom folder you created
-logpath  = /var/log/my-yfinance-app/access.log
+logpath  = /home/azureuser/app/logs/access.log
 # If they trigger 5 errors within 2 minutes...
 maxretry = 5
 findtime = 120
