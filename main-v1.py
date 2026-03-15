@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, status, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,31 +10,15 @@ import uvicorn
 import yfinance as yf
 
 
-# Standardized format for Fail2ban to read easily
-LOG_CONFIG = {
-    "version": 1,
-    "formatters": {
-        "access": {
-            "()": "uvicorn.logging.AccessFormatter",
-            "fmt": '%(client_addr)s - "%(request_line)s" %(status_code)s',
-        },
-    },
-    "handlers": {
-        "access": {
-            "class": "logging.FileHandler",
-            "filename": "/var/log/uvicorn/access.log",
-            "formatter": "access",
-        },
-    },
-    "loggers": {
-        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
-    },
-}
-
 # Initialize the FastAPI app
 app = FastAPI(
     title="Stock History API",
-    description="An API to fetch historical stock data using yfinance."
+    description="An API to fetch historical stock data using yfinance.",
+    contact={
+        "name": "Alvin",
+        "email": "y_lin266496@fanshaweonline.ca"
+    },
+    version="1.0"
 )
 
 # 1. CORS Middleware (Essential if your frontend is on a different port/domain)
@@ -43,6 +28,9 @@ app.add_middleware(
     allow_methods=["GET", "HEAD", "OPTIONS"],
     allow_headers=["*"],
 )
+
+yf.config.debug.logging = False
+
 
 # 2. Custom Security Headers Middleware
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -62,23 +50,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-print("running v1.4...")
-
-@app.get("/", response_class=PlainTextResponse)
+@app.get("/", response_class=PlainTextResponse, summary="dummy root path")
 async def root():
     return "Hello World"
 
 
-@app.get("/health", response_class=PlainTextResponse)
+@app.get("/health", response_class=PlainTextResponse, summary="for platform health check")
 async def health_check():
     return "OK"
 
 
-@app.get("/api/stock/{ticker}")
+@app.get("/api/stock/{ticker}", summary="yfinance wrapper")
 async def get_stock_history(
     ticker: str,
     period: str = Query(
-        default="1mo", 
+        default="2y", 
         description="Valid periods: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max"
     )
 ):
@@ -95,7 +81,7 @@ async def get_stock_history(
         # Handle cases where the ticker is invalid or returns no data
         if history_df.empty:
             raise HTTPException(
-                status_code=404, 
+                status_code=400, 
                 detail=f"No historical data found for ticker '{ticker}' with period '{period}'."
             )
             
@@ -118,13 +104,80 @@ async def get_stock_history(
 #            "rows": len(data_dict),
 #            "data": data_dict
 #        }
-        
+    
+    except HTTPException as he:
+        raise he
     except Exception as e:
         # Catch any unexpected errors from yfinance
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/get_report_data", summary="Customized endpoint to return assigned data format")
+async def get_report_data(
+    period: str = Query(
+        default="2y",
+        description="Valid periods: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max"
+    ),
+    norm: str = Query(
+        default="y",
+        description="Normalized value: y, n"
+    )
+):
+    # 1. Define your list of representative tickers
+    tickers = ["QQQ", "VDE", "VEGI", "PBJ", "ICLN", "SPY", "ITA"]
+
+    # 2. Download the data
+    # This returns a wide-format DataFrame by default
+    data = yf.download(tickers, period=period, keepna=False, auto_adjust=True)
+    
+    # 3. Extract only the 'Close' prices
+    # This removes the multi-level header and keeps tickers as columns
+    wide_df = data["Close"]
+
+    if (norm == "y"):
+        for t in tickers:
+            wide_df[t] = wide_df[t].ffill().bfill()
+            wide_df[t] = wide_df[t] / wide_df[t].iloc[0]
+
+    # Convert datetime index to string for clean JSON serialization
+    wide_df.index = wide_df.index.strftime('%Y-%m-%d')
+
+    # Convert the Pandas DataFrame to a dictionary
+    data_dict = wide_df.to_dict(orient="index")
+
+    return JSONResponse(
+        content=data_dict
+    )
+
+# For some reason, the ^VIX makes a nan in data. Simply drop the first line to get rid of it.
+@app.get("/api/test", summary="A playground to test new features")
+async def test():
+    # 1. Define your list of representative tickers
+    tickers = ["QQQ", "VDE", "VEGI", "^VIX"]
+
+    # 2. Download the data
+    # This returns a wide-format DataFrame by default
+    data = yf.download(tickers, period="1mo", auto_adjust=True)
+
+    # 3. Extract only the 'Close' prices
+    # This removes the multi-level header and keeps tickers as columns
+    wide_df = data["Close"]
+    print(wide_df.head())
+    wide_df.drop(wide_df.index[0], inplace=True)
+    print(wide_df.head())
+
+    # Convert datetime index to string for clean JSON serialization
+    wide_df.index = wide_df.index.strftime('%Y-%m-%d')
+
+    # Convert the Pandas DataFrame to a dictionary
+    data_dict = wide_df.to_dict(orient="index")
+
+    return JSONResponse(
+        content=data_dict
+    )
+
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 
 # --- 3. Main Execution Block ---
 if __name__ == "__main__":
