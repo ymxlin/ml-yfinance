@@ -5,10 +5,11 @@
     compress
     delaycompress
     notifempty
-    su azureuser logs
-    create 0664 azureuser logs
+    su azureuser azureuser
+    create 0664 azureuser azureuser
     sharedscripts
     postrotate
+        touch /home/azureuser/app/logs/access.log
         /usr/bin/systemctl reload fail2ban > /dev/null 2>&1 || true
     endscript
 }
