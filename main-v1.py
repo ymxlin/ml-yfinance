@@ -8,6 +8,22 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 import logging
 import uvicorn
 import yfinance as yf
+from uvicorn.logging import AccessFormatter
+
+
+
+class UserAgentFormatter(AccessFormatter):
+    def formatMessage(self, record):
+        # The 'scope' contains the raw ASGI request data
+        scope = record.args[2]
+        headers = dict(scope.get("headers", []))
+        
+        # Extract User-Agent (headers are bytes in ASGI)
+        user_agent = headers.get(b"user-agent", b"-").decode("utf-8")
+        
+        # Inject a custom attribute into the record
+        record.user_agent = user_agent
+        return super().formatMessage(record)
 
 
 # Initialize the FastAPI app
