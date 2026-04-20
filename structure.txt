@@ -1,0 +1,38 @@
+.
+├── README.md
+├── __pycache__
+│   └── main.cpython-312.pyc
+├── config
+│   ├── fail2ban
+│   │   ├── fastapi-filter.conf
+│   │   └── jail.local
+│   ├── logrotate
+│   │   └── yfinance
+│   ├── systemd
+│   │   └── yfinance.service
+│   └── uvicorn
+│       └── logging.yaml
+├── logs
+│   ├── access.log
+│   ├── access.log.1
+│   ├── access.log.2.gz
+│   ├── access.log.3.gz
+│   ├── access.log.4.gz
+│   ├── access.log.5.gz
+│   ├── access.log.6.gz
+│   └── access.log.7.gz
+├── main-v1.py
+├── main.py -> main-v1.py
+├── requirements.txt
+├── run.sh
+├── static
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── apple-touch-icon.png
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── favicon.ico
+│   └── site.webmanifest
+└── structure.txt
+
+9 directories, 27 files
